@@ -1,0 +1,22 @@
+{
+  "type": "FeatureCollection",
+  "name": "inspection_targets",
+  "features": [
+    {
+      "type": "Feature",
+      "id": "BR-0001",
+      "properties": {
+        "name": "高知県庁",
+        "type": "facility",
+        "status": "pending",
+        "last_updated": "2025-09-30",
+        "owner": "高知市",
+        "notes": "目視点検予定"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [133.5312, 33.5597]
+      }
+    }
+  ]
+}
