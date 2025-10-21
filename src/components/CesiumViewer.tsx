@@ -46,6 +46,9 @@ export default function CesiumViewer() {
     v.imageryLayers.removeAll();
     // 地形は楕円体（無料）
     v.terrainProvider = new EllipsoidTerrainProvider();
+    const tokyoLon = 139.6917;
+    const tokyoLat = 35.6895;
+    const initialHeight = 20000000;
 
     // 高解像度の世界画像（Ion）— 見栄え向上。不要なら try 内を削除
     (async () => {
@@ -57,21 +60,47 @@ export default function CesiumViewer() {
       } catch (e) {
         console.error("[Imagery] ion world imagery error:", e);
       } finally {
-        // ★ 初期はホームビュー（デフォルト）に戻す
-        v.camera.flyHome(0);
+        v.camera.setView({
+          destination: Cartesian3.fromDegrees(
+            tokyoLon,
+            tokyoLat,
+            initialHeight
+          ),
+          orientation: {
+            heading: 0,
+            pitch: -Math.PI / 2,
+            roll: 0,
+          },
+        });
         v.scene.requestRender();
       }
     })();
 
+    // Home ボタンを東京へ飛ばすように差し替え
+    const removeHomeHandler =
+      v.homeButton.viewModel.command.beforeExecute.addEventListener((e) => {
+        e.cancel = true; // 規定の「世界矩形へ戻る」をキャンセル
+        v.camera.flyTo({
+          destination: Cartesian3.fromDegrees(
+            tokyoLon,
+            tokyoLat,
+            initialHeight
+          ),
+          orientation: {
+            heading: 0,
+            pitch: -Math.PI / 2,
+            roll: 0,
+          },
+        });
+      });
+
     // レイアウト確定やウィンドウリサイズ時はホームへ（中央ズレ対策）
     const id = setTimeout(() => {
       v.resize();
-      v.camera.flyHome(0);
       v.scene.requestRender();
     }, 0);
     const onResize = () => {
       v.resize();
-      v.camera.flyHome(0);
       v.scene.requestRender();
     };
     window.addEventListener("resize", onResize);
@@ -84,6 +113,8 @@ export default function CesiumViewer() {
     return () => {
       clearTimeout(id);
       window.removeEventListener("resize", onResize);
+      // リスナー解除
+      removeHomeHandler?.();
     };
   }, [viewerReady, ionAssetId]);
 
@@ -221,14 +252,14 @@ export default function CesiumViewer() {
         className="h-full w-full"
         // ★ Home ボタンを出して「いつでも初期位置へ」戻れるように
         homeButton={true}
-        animation={false}
-        timeline={false}
-        baseLayerPicker={false}
-        geocoder={false}
-        sceneModePicker={false}
-        navigationHelpButton={false}
-        fullscreenButton={false}
-        selectionIndicator={false}
+        animation={true}
+        timeline={true}
+        baseLayerPicker={true}
+        geocoder={true}
+        sceneModePicker={true}
+        navigationHelpButton={true}
+        fullscreenButton={true}
+        selectionIndicator={true}
       />
     </div>
   );
