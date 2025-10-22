@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Viewer as ResiumViewer } from "resium";
 import {
   Ion,
@@ -33,6 +33,12 @@ export default function CesiumViewer() {
   const [viewerReady, setViewerReady] = useState(false);
   const geojsonRef = useRef<GeoJsonDataSource | null>(null);
 
+  // --- 経度/緯度/高さ 入力UI（東京を初期値） ---
+  const [lonInput, setLonInput] = useState<string>("139.6917");
+  const [latInput, setLatInput] = useState<string>("35.6895");
+  const [heightInput, setHeightInput] = useState<string>("3000");
+  const [gotoError, setGotoError] = useState<string>("");
+
   // assetId を厳密に解釈（不正なら undefined）
   const rawAssetId = (process.env.NEXT_PUBLIC_ION_ASSET_ID || "").trim();
   const parsed = Number.parseInt(rawAssetId, 10);
@@ -46,6 +52,7 @@ export default function CesiumViewer() {
     v.imageryLayers.removeAll();
     // 地形は楕円体（無料）
     v.terrainProvider = new EllipsoidTerrainProvider();
+
     const tokyoLon = 139.6917;
     const tokyoLat = 35.6895;
     const initialHeight = 20000000;
@@ -242,8 +249,84 @@ export default function CesiumViewer() {
     };
   }, [viewerReady, ionAssetId]);
 
+  // --- 経度/緯度/高さ 入力 → flyTo ---
+  const handleFlyTo = (e?: React.FormEvent) => {
+    e?.preventDefault();
+    setGotoError("");
+    const lon = Number.parseFloat(lonInput);
+    const lat = Number.parseFloat(latInput);
+    const height = Number.parseFloat(heightInput);
+
+    if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
+      setGotoError("経度は -180 ~ 180 の数値で入力してください。");
+      return;
+    }
+    if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
+      setGotoError("緯度は -90 ~ 90 の数値で入力してください。");
+      return;
+    }
+    if (!Number.isFinite(height) || height <= 0) {
+      setGotoError("高さは 0 より大きい数値(メートル）で入力してください。");
+      return;
+    }
+
+    const v = viewerRef.current;
+    if (!v) return;
+    v.camera.flyTo({
+      destination: Cartesian3.fromDegrees(lon, lat, height),
+      orientation: { heading: 0, pitch: -Math.PI / 2, roll: 0 },
+      duration: 0.8,
+    });
+  };
+
   return (
-    <div className="flex-1 min-h-[600px] overflow-hidden">
+    <div className="relative flex-1 min-h-[600px] overflow-hidden">
+      {/* 入力フォーム（オーバーレイ） */}
+      <form
+        onSubmit={handleFlyTo}
+        className="absolute z-10 left-3 top-3 rounded-xl bg-white/80 backdrop-blur px-3 py-2 shadow-md flex items-end gap-2"
+      >
+        <div className="flex flex-col text-sm">
+          <label className="font-medium">経度 (lon)</label>
+          <input
+            className="border rounded px-2 py-1 w-[120px]"
+            value={lonInput}
+            onChange={(e) => setLonInput(e.target.value)}
+            placeholder="139.6917"
+            inputMode="decimal"
+          />
+        </div>
+        <div className="flex flex-col text-sm">
+          <label className="font-medium">緯度 (lat)</label>
+          <input
+            className="border rounded px-2 py-1 w-[120px]"
+            value={latInput}
+            onChange={(e) => setLatInput(e.target.value)}
+            placeholder="35.6895"
+            inputMode="decimal"
+          />
+        </div>
+        <div className="flex flex-col text-sm">
+          <label className="font-medium">高さ (m)</label>
+          <input
+            className="border rounded px-2 py-1 w-[120px]"
+            value={heightInput}
+            onChange={(e) => setHeightInput(e.target.value)}
+            placeholder="3000"
+            inputMode="numeric"
+          />
+        </div>
+        <button
+          type="submit"
+          className="h-[34px] px-3 rounded bg-blue-600 text-white text-sm font-semibold hover:bg-blue-700"
+        >
+          移動
+        </button>
+        {gotoError && (
+          <span className="ml-2 text-xs text-red-600">{gotoError}</span>
+        )}
+      </form>
+
       <ResiumViewer
         ref={(r) => {
           viewerRef.current = (r as any)?.cesiumElement || null;
